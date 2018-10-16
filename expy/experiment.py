@@ -192,38 +192,4 @@ def efficiency(x_label: str = None) -> Grapher:
     return dependent_grapher("Efficiency", lambda x_data, y_data: [y_data[0] / y_data[index] / x for index, x in enumerate(x_data)], x_label=x_label)
 
 
-def main():
-    if not os.path.exists('graphs'):
-        os.makedirs('graphs')
-    pattern = "time =\s*([0-9.]+).*"
-    # Sieve 1
-    # Compare sieve and sieve1
-    original = run_command(lambda n: ["sieve", str(n)], pattern=pattern)
-    sieve1 = run_command(lambda n: ["sieve1", str(n)], pattern=pattern)
-    results = run_experiment([100000, 200000, 300000], sieve=original, sieve1=sieve1)
-    results.create_graph('graphs/sieve1', 'Sieve vs Sieve1', identity(x_label='n'))
-    # Sieve 2
-    sieve2range = [500000000, 1000000000, 1500000000]
-    sieve2experiments = OrderedDict(('n=' + str(n), run_command(['sieve2', str(n)], env=omp_env(), pattern=pattern)) for n in sieve2range)
-    results = run_experiment(range(1, 9), experiments=sieve2experiments)
-    results.create_graph('graphs/sieve2', 'Sieve 2', identity(), speedup())
-    # Sieve 3
-    # Examine blocksizes and sieve 3
-    sieve3experiments = {'blk=' + str(blocksize): run_command(lambda n, blocksize=blocksize: ['sieve3', str(n), str(blocksize)], pattern=pattern) for blocksize in [10000, 100000, 1000000, 10000000, 100000000]}
-    exps = OrderedDict(sorted(sieve3experiments.items()))
-    #results = run_experiment([500000000, 1000000000, 1500000000], experiments=exps)
-    #results.create_graph('graphs/sieve3', 'Sieve 3', identity(x_label='n'))
-    # Sieve 4
-    # Examine performance of sieve 4
-    # Grab the sieve3 data from before
-    sieve4 = run_command(['sieve4', str(1500000000), str(100000)], env=omp_env(), pattern=pattern, trials=5)
-    results = run_experiment(range(1, 9), sieve4=sieve4)
-    results.create_graph('graphs/sieve4', 'Sieve 4, n=1500000000, blk=100000', identity(), speedup(), efficiency())
-
-
-if __name__ == "__main__":
-    main()
-
-
-
 

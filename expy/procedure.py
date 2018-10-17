@@ -1,5 +1,6 @@
 import matplotlib
 matplotlib.use('Agg')
+from .config import Config
 from matplotlib import pyplot as plt
 from typing import Callable, cast, Dict, Iterable, List, Sequence, Tuple, Union
 import subprocess
@@ -30,6 +31,10 @@ class CompositeProcedure(Procedure):
         return self.outdated()
 
 
+ProcedureGenerator = Callable[[Config], Procedure]
+
+
+
 # rows, cols, index
 GraphPosition = Tuple[int, int, int]
 # Graphers create a grap
@@ -39,7 +44,8 @@ Grapher = Callable[[GraphPosition, List[int], Dict[str, List[float]]], None]
 
 class ExperimentResult:
 
-    def __init__(self, x_data: List[int], data: Dict[str, List[float]]):
+    def __init__(self, config: Config, x_data: List[int], data: Dict[str, List[float]]):
+        self.config = config
         self.data = data
         self.x_data = x_data
 
@@ -56,7 +62,7 @@ class ExperimentResult:
             view((rows, cols, index * 2 + 1), self.x_data, self.data)
         plt.tight_layout()
         plt.subplots_adjust(top=0.88)
-        plt.savefig(path, dpi=1000)
+        plt.savefig(self.config["experiment_out"] + "/" + path, dpi=1000)
         plt.clf()
 
     @staticmethod
@@ -69,20 +75,32 @@ class ExperimentResult:
             pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
 
 
-def run_experiment(x_range: Iterable[int], procedures: Dict[str, Procedure] = None) -> ExperimentResult:
-    procedures = OrderedDict(procedures) if procedures else OrderedDict()
+class Experiment:
 
-    x_data = list(x_range)
-    data = OrderedDict((name, [experiment.run(x) for x in x_range]) for name, experiment in procedures.items())
-    return ExperimentResult(x_data, data)
+    def __init__(self, name: str, config: Config, procedures: OrderedDict[str, ProcedureGenerator]):
+        self.name = name
+        self.config = config
+        self.procedures = procedures
+
+    def run(self, range: Iterable[int], **kwargs) -> ExperimentResult:
+        exp_config = self.config.new_child("experiment", self.name, kwargs)
+        result_path = Path(exp_config["experiment_out"] + "/" + self.name + ".exp")
+
+        if result_path.is_file():
+            return ExperimentResult.load(result_path)
+        else:
+            x_data = list(range)
+            built = OrderedDict((name, procedure(exp_config) for name, procedure in self.procedures))
+            data = OrderedDict((name, [procedure.run(x) for x in range]) for name, procedure in built.items())
+            return ExperimentResult(self.config, x_data, data)
 
 
 def mean(numbers: List[float]) -> float:
     return float(sum(numbers)) / max(len(numbers), 1)
 
 
-def exec_command(command: List[str], env: Dict[str, str]) -> str:
-    sub = subprocess.run(args=command, env=env, stdout=subprocess.PIPE)
+def exec_command(command: List[str], env: Dict[str, str], dir: str) -> str:
+    sub = subprocess.run(args=command, env=env, stdout=subprocess.PIPE, cwd=dir)
     return sub.stdout.decode("utf-8")
 
 

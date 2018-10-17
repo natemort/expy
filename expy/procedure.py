@@ -9,10 +9,28 @@ import pickle
 from collections import OrderedDict
 
 
-# An experiment is simply a function that takes a number of threads, and returns how long it took
-# with that number of threads
-# Any details, such as how many trials to perform, is a detail of the experiment
-Experiment = Callable[[int], float]
+class Procedure:
+
+    def run(self, x: int) -> float:
+        pass
+
+    def is_outdated(self) -> bool:
+        return False
+
+
+class CompositeProcedure(Procedure):
+
+    def __init__(self, runner: Callable[[int], float], outdated: Callable[[], bool]):
+        self.runner = runner
+        self.outdated = outdated
+
+    def run(self, x: int) -> float:
+        return self.runner(x)
+
+    def is_outdated(self):
+        return self.outdated()
+
+
 # rows, cols, index
 GraphPosition = Tuple[int, int, int]
 # Graphers create a grap
@@ -26,8 +44,8 @@ class ExperimentResult:
         self.data = data
         self.x_data = x_data
 
-    def __getitem__(self, exp: str) -> Dict[int, float]:
-        return OrderedDict((x, self.data[exp][index]) for index, x in enumerate(self.x_data))
+    def __getitem__(self, proc: str) -> Dict[int, float]:
+        return OrderedDict((x, self.data[proc][index]) for index, x in enumerate(self.x_data))
 
     def create_graph(self, path: str, title: str, *args):
         rows = len(args)
@@ -42,7 +60,6 @@ class ExperimentResult:
         plt.savefig(path, dpi=1000)
         plt.clf()
 
-
     @staticmethod
     def load(path: str) -> 'ExperimentResult':
         with open(path + '.experiment', 'rb') as f:
@@ -53,20 +70,11 @@ class ExperimentResult:
             pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
 
 
-def load_or_run(name: str, x_range: Iterable[int], **kwargs) -> ExperimentResult:
-    results = ExperimentResult.load(name)
-    if not results:
-        results = run_experiment(x_range, kwargs=kwargs)
-        results.save(name)
-    return results
+def run_experiment(x_range: Iterable[int], procedures: Dict[str, Procedure] = None) -> ExperimentResult:
+    procedures = OrderedDict(procedures) if procedures else OrderedDict()
 
-
-def run_experiment(x_range: Iterable[int],  experiments: Dict[str, Experiment] = None, **kwargs) -> ExperimentResult:
-    experiments = OrderedDict(experiments) if experiments else OrderedDict()
-    for key, experiment in kwargs.items():
-        experiments[key] = experiment
     x_data = list(x_range)
-    data = OrderedDict((name, [experiment(x) for x in x_range]) for name, experiment in experiments.items())
+    data = OrderedDict((name, [experiment.run(x) for x in x_range]) for name, experiment in procedures.items())
     return ExperimentResult(x_data, data)
 
 
@@ -77,48 +85,6 @@ def mean(numbers: List[float]) -> float:
 def exec_command(command: List[str], env: Dict[str, str]) -> str:
     sub = subprocess.run(args=command, env=env, stdout=subprocess.PIPE)
     return sub.stdout.decode("utf-8")
-
-
-###
-# Experiment generators
-###
-def run_command(cmd: Union[List[str], Callable[[int], List[str]]],
-                env: Union[Dict[str, str], Callable[[int], Dict[str, str]]] = None,
-                trials: int = 5,
-                pattern: str = ".*([0-9.]+).*") -> Experiment:
-    """Runs the specified command 'trials' times, with the environment created by 'env_builder'
-
-    Timing data is reported by the program itself, and by searching the program's output for 'pattern'.
-    Because run_command only runs an arbitrary command, it has no mechanism for specifying the number of threads
-    to use.  The program must be able to receive the number of threads to use from an environmental variable.
-    'env_builder' is a function that receives the number of threads to use, and then generates an environment to
-    call the subprocess with, and ultimately controls the number of threads that the program is run with.
-    run_command reports the average of the run times.
-
-    """
-    if not env:
-        env = {}
-
-    def run(threads: int) -> float:
-        times = []
-        environment = env(threads) if not isinstance(env, dict) else env
-        command = cmd(threads) if not isinstance(cmd, list) else cmd
-        for trial in range(trials):
-            search = re.search(pattern, exec_command(command, environment))
-            if not search:
-                raise RuntimeError("Unable to parse output")
-            times.append(float(search.group(1)))
-        print(threads, " -> ", command, " : ", mean(times))
-        return mean(times)
-    return run
-
-
-def omp_env(defaults: Dict[str, str] = None) -> Callable[[int], Dict[str, str]]:
-    def build_env(threads: int) -> Dict[str, str]:
-        result = dict(defaults) if defaults else {}
-        result["OMP_NUM_THREADS"] = str(threads)
-        return result
-    return build_env
 
 
 ###

@@ -1,5 +1,6 @@
 
-
+from pathlib import Path
+import re
 from .procedure import *
 from .config import Config
 
@@ -50,8 +51,17 @@ class Environment:
 
     def run_experiment(self, name: str, range: Iterable[int], *args, **kwargs) -> ExperimentResult:
         exp_config = self.config.new_child("experiment", name, kwargs)
-        procedures = OrderedDict((self._runners[command](exp_config) for command in args))
-        results = run_experiment(range, procedures)
-        results.save(exp_config["experiment_out"] + "/" + name)
+        result_path = Path(exp_config["experiment_out"] + "/" + name + ".exp")
+
+        if result_path.is_file():
+            results = ExperimentResult.load(result_path)
+        else:
+            procedures = OrderedDict((self._runners[command](exp_config) for command in args))
+            results = run_experiment(range, procedures)
+            results.save(result_path)
+
+        return results
+
+
 
 

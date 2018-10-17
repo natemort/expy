@@ -3,10 +3,9 @@ matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 from typing import Callable, cast, Dict, Iterable, List, Sequence, Tuple, Union
 import subprocess
-import re
-import os
 import pickle
 from collections import OrderedDict
+from pathlib import Path
 
 
 class Procedure:
@@ -61,12 +60,12 @@ class ExperimentResult:
         plt.clf()
 
     @staticmethod
-    def load(path: str) -> 'ExperimentResult':
-        with open(path + '.experiment', 'rb') as f:
+    def load(path: Path) -> 'ExperimentResult':
+        with path.open('rb') as f:
             return pickle.load(f)
 
-    def save(self, path: str):
-        with open(path + '.experiment', 'wb') as f:
+    def save(self, path: Path):
+        with path.open('wb') as f:
             pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
 
 

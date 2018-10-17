@@ -7,6 +7,7 @@ import subprocess
 import pickle
 from collections import OrderedDict
 from pathlib import Path
+from os import makedirs
 
 
 class Procedure:
@@ -77,22 +78,27 @@ class ExperimentResult:
 
 class Experiment:
 
-    def __init__(self, name: str, config: Config, procedures: OrderedDict[str, ProcedureGenerator]):
+    def __init__(self, name: str, config: Config, procedures: Dict[str, ProcedureGenerator]):
         self.name = name
         self.config = config
         self.procedures = procedures
 
     def run(self, range: Iterable[int], **kwargs) -> ExperimentResult:
         exp_config = self.config.new_child("experiment", self.name, kwargs)
+        makedirs(exp_config["directory"], exist_ok=True)
+        makedirs(exp_config["experiment_out"], exist_ok=True)
         result_path = Path(exp_config["experiment_out"] + "/" + self.name + ".exp")
 
         if result_path.is_file():
+            print("Loaded results for experiment: ", self.name)
             return ExperimentResult.load(result_path)
         else:
             x_data = list(range)
-            built = OrderedDict((name, procedure(exp_config) for name, procedure in self.procedures))
+            built = OrderedDict((name, procedure(exp_config)) for name, procedure in self.procedures.items())
             data = OrderedDict((name, [procedure.run(x) for x in range]) for name, procedure in built.items())
-            return ExperimentResult(self.config, x_data, data)
+            result = ExperimentResult(self.config, x_data, data)
+            result.save(result_path)
+            return result
 
 
 def mean(numbers: List[float]) -> float:

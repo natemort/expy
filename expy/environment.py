@@ -26,21 +26,24 @@ class Environment:
             config = config.new_child("command", command, kwargs)
 
             def run(x: int) -> float:
-                instance = config.new_child()
-                instance["x"] = x
-                environment = config["command_env"]
-                trials = config["command_trials"]
-                pattern = config["command_pattern"]
-                args = config["command_args"]
+                instance = config.new_child("x", str(x))
+                environment = instance["command_env"]
+                trials = instance["command_trials"]
+                pattern = instance["command_pattern"]
+                args = instance["command_args"]
                 full_command = args.copy()
                 full_command.insert(0, command)
                 times = []
                 for trial in range(trials):
-                    search = re.search(pattern, exec_command(full_command, environment, config["directory"]))
+                    output = exec_command(full_command, environment, instance["directory"])
+                    search = re.search(pattern, output)
                     if not search:
-                        raise RuntimeError("Unable to parse output")
-                    times.append(float(search.group(1)))
-                print(x, " -> ", command, " : ", mean(times))
+                        raise RuntimeError("Unable to parse output: " + output)
+                    try:
+                        times.append(float(search.group(1)))
+                    except:
+                        raise RuntimeError("Failed to parse output:\n```\n" + output+"\n```\nwith '" + pattern +"'.  Captured: '" + search.group(1) +"'")
+                print("Running", command, "-", x, "->", full_command, ":", mean(times))
                 return mean(times)
 
             return CompositeProcedure(run, lambda: False)
@@ -48,7 +51,7 @@ class Environment:
         return setup
 
     def experiment(self, name: str, **kwargs) -> Experiment:
-        generators = OrderedDict((name, generator for name, generator in kwargs.items()))
+        generators = OrderedDict((name, generator) for name, generator in kwargs.items())
         return Experiment(name, self.config, generators)
 
 

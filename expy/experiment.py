@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 from collections import OrderedDict
 from os import makedirs
 from pathlib import Path
-from typing import Dict, List, Iterable
+from typing import Dict, List, Iterable, Tuple
 import pickle
 from .config import Config
 from .procedure import ProcedureGenerator
@@ -22,6 +22,12 @@ class ExperimentResult:
     def __getitem__(self, proc: str) -> Dict[int, float]:
         return OrderedDict((x, self.data[proc][index]) for index, x in enumerate(self.x_data))
 
+    def __getstate__(self) -> Tuple[List[int], Dict[str, List[float]]]:
+        return (self.x_data, self.data)
+    
+    def __setstate__(self, state):
+        self.x_data, self.data = state
+        
     def presentation(self, name: str, *args, **kwargs):
         pres_config = self.config.new_child("presentation", name, kwargs)
         rows = len(args)
@@ -62,11 +68,13 @@ class Experiment:
 
         if result_path.is_file():
             print("Loaded results for experiment: ", self.name)
-            return ExperimentResult.load(result_path)
+            result = ExperimentResult.load(result_path)
+            result.config = exp_config
         else:
             result = self._run(x_range, exp_config)
             result.save(result_path)
-            return result
+
+        return result
 
     def _run(self, x_range: Iterable[int], exp_config: Config) -> ExperimentResult:
         x_data = list(x_range)

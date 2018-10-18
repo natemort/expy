@@ -17,7 +17,7 @@ class Config:
     def __getitem__(self, item: str) -> Any:
         val = self._backing[item]
         if callable(val):
-            return val(self._backing)
+            return val(self)
         else:
             return val
 

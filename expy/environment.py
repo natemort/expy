@@ -21,7 +21,7 @@ class Environment:
         self.config["command_pattern"] = ".*([0-9.]+).*"
         self.config["command_env"] = {}
         self.config["presentation_title"] = lambda config: config["presentation"]
-        self.config["presentation_out"] = lambda config: config["experiment_out"] + "/" + config["presentation"]
+        self.config["presentation_out"] = lambda config: (config["experiment_out"] + "/" + config["presentation"])
         self.config["graph_title"] = lambda config: config["graph"]
         self.config["graph_y_label"] = "Execution Time"
         self.config["graph_x_label"] = "Threads"

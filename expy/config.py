@@ -28,6 +28,11 @@ class Config:
         if key not in self._backing:
             self._backing[key] = default_value
 
+    def defaults(self, prefix: str, values: Dict[str, Any]):
+        prefix = prefix if prefix else ""
+        for key, value in values.items():
+            self.default(prefix + "_" + key, value)
+
     def add_all(self, prefix: str, values: Dict[str, Any]):
         prefix = prefix if prefix else ""
         for key, value in values.items():

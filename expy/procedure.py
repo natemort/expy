@@ -25,4 +25,16 @@ class CompositeProcedure(Procedure):
         return self.outdated()
 
 
-ProcedureGenerator = Callable[[Config], Procedure]
+# TODO - Generalize and reuse this class for GraphGenerator
+class ProcedureGenerator:
+
+    def __init__(self, config: Config, generator: Callable[[Config], Procedure]):
+        self.config = config
+        self._generator = generator
+
+    def __call__(self, *args, **kwargs) -> 'ProcedureGenerator':
+        return ProcedureGenerator(self.config.new_child(self.config.prefix, values=kwargs), self._generator)
+
+    def generate(self, exp_config: Config) -> Procedure:
+        return self._generator(self.config.as_child(exp_config))
+

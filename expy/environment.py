@@ -2,45 +2,46 @@
 import re
 import subprocess
 from collections import OrderedDict
-from typing import Dict, List
+from typing import Any, Dict, List
 from .config import Config
 from .experiment import Experiment
 from .procedure import CompositeProcedure, Procedure, ProcedureGenerator
 
 
 class Environment:
-    config = Config()
+    config = Config("env")
 
     def __init__(self, directory: str):
         self._add_defaults()
-        self.config["directory"] = directory
+        self.config["env_directory"] = directory
 
     def _add_defaults(self):
-        self.config["experiment_out"] = lambda config: config["directory"] + "/results"
-        self.config["command_trials"] = 5
-        self.config["command_pattern"] = ".*([0-9.]+).*"
-        self.config["command_env"] = {}
-        self.config["presentation_title"] = lambda config: config["presentation"]
-        self.config["presentation_out"] = lambda config: (config["experiment_out"] + "/" + config["presentation"])
-        self.config["graph_title"] = lambda config: config["graph"]
-        self.config["graph_y_label"] = "Execution Time"
-        self.config["graph_x_label"] = "Threads"
+
+        self.config["exp_out"] = lambda config: config["env_directory"] + "/results"
+        self.config["cmd_trials"] = 5
+        self.config["cmd_pattern"] = ".*([0-9.]+).*"
+        self.config["cmd_env"] = {}
+        self.config["pres_title"] = lambda config: config["pres"]
+        self.config["pres_out"] = lambda config: config["exp_out"] + "/" + config["pres"]
+        self.config["view_title"] = lambda config: config["view"]
+        self.config["view_y_label"] = "Execution Time"
+        self.config["view_x_label"] = "Threads"
 
     def command(self, command: str, **kwargs) -> ProcedureGenerator:
-        def setup(config: Config) -> Procedure:
-            config = config.new_child("command", command, kwargs)
+        config = self.config.new_child("cmd", command, kwargs)
 
+        def setup(instance: Config) -> Procedure:
             def run(x: int) -> float:
-                instance = config.new_child("x", str(x))
-                environment = instance["command_env"]
-                trials = instance["command_trials"]
-                pattern = instance["command_pattern"]
-                args = instance["command_args"]
+                instance["x"] = str(x)
+                environment = instance["cmd_env"]
+                trials = instance["cmd_trials"]
+                pattern = instance["cmd_pattern"]
+                args = instance["cmd_args"]
                 full_command = args.copy()
                 full_command.insert(0, command)
                 times = []
                 for trial in range(trials):
-                    output = _exec_command(full_command, environment, instance["directory"])
+                    output = _exec_command(full_command, environment, instance["env_directory"])
                     search = re.search(pattern, output)
                     if not search:
                         raise RuntimeError("Unable to parse output: " + output)
@@ -54,7 +55,7 @@ class Environment:
 
             return CompositeProcedure(run, lambda: False)
 
-        return setup
+        return ProcedureGenerator(config, setup)
 
     def experiment(self, name: str, **kwargs) -> Experiment:
         generators = OrderedDict((name, generator) for name, generator in kwargs.items())

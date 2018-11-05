@@ -23,9 +23,9 @@ GraphGenerator = Callable[[Config], Graph]
 ###
 def _graph_and_table(pos: GraphPosition, x_data: List[int], data: Dict[str, List[float]],
                      config: Config):
-    y_label = config["graph_y_label"]
-    x_label = config["graph_x_label"]
-    title = config["graph_title"]
+    y_label = config["view_y_label"]
+    x_label = config["view_x_label"]
+    title = config["view_title"]
     plt.subplot(pos[0], pos[1], pos[2])
     plt.title(title)
     plt.locator_params(axis='y', nbins=6)
@@ -58,7 +58,7 @@ def _graph_and_table(pos: GraphPosition, x_data: List[int], data: Dict[str, List
 
 def graph(title: str, transformation: Callable[[List[int], List[float]], List[float]], **kwargs) -> GraphGenerator:
     def generate(config: Config) -> Graph:
-        graph_config = config.new_child("graph", title, kwargs)
+        graph_config = config.new_child("view", title, kwargs)
 
         def apply(pos: GraphPosition, x_data: List[int], y_data: Dict[str, List[float]]):
             data = OrderedDict((key, transformation(x_data, data)) for key, data in y_data.items())

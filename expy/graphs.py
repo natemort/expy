@@ -26,13 +26,15 @@ def _graph_and_table(pos: GraphPosition, x_data: List[int], data: Dict[str, List
     y_label = config["view_y_label"]
     x_label = config["view_x_label"]
     title = config["view_title"]
+    graph_type = config["view_type"]
+    plotter = getattr(plt, graph_type)
     plt.subplot(pos[0], pos[1], pos[2])
     plt.title(title)
     plt.locator_params(axis='y', nbins=6)
     ticks = list(range(0, len(x_data)))
     tick_labels = [str(x) for x in x_data]
     for name, y_data in data.items():
-        plt.plot(ticks, y_data, label=name)
+        plotter(ticks, y_data, label=name)
     if len(data) > 1:
         plt.legend(loc='best')
 

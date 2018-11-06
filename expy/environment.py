@@ -30,6 +30,7 @@ class Environment:
         self.config["view_title"] = lambda config: config["view"]
         self.config["view_y_label"] = "Execution Time"
         self.config["view_x_label"] = "Threads"
+        self.config["view_type"] = "plot"
 
     def command(self, command: str, **kwargs) -> ProcedureGenerator:
         config = self.config.new_child("cmd", command, kwargs)

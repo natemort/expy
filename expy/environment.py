@@ -7,6 +7,8 @@ from .config import Config
 from .experiment import Experiment
 from .procedure import CompositeProcedure, Procedure, ProcedureGenerator
 
+OSP_ENV = lambda config: {"OMP_NUM_THREADS": config["x"]}
+
 
 class Environment:
     config = Config("env")
@@ -20,6 +22,8 @@ class Environment:
         self.config["exp_out"] = lambda config: config["env_directory"] + "/results"
         self.config["cmd_trials"] = 5
         self.config["cmd_pattern"] = ".*([0-9.]+).*"
+        self.config["cmd_shell"] = False
+        self.config["cmd_full"] = lambda config: config["cmd"] + config["cmd_args"]
         self.config["cmd_env"] = {}
         self.config["pres_title"] = lambda config: config["pres"]
         self.config["pres_out"] = lambda config: config["exp_out"] + "/" + config["pres"]
@@ -36,12 +40,10 @@ class Environment:
                 environment = instance["cmd_env"]
                 trials = instance["cmd_trials"]
                 pattern = instance["cmd_pattern"]
-                args = instance["cmd_args"]
-                full_command = args.copy()
-                full_command.insert(0, command)
+                full_command = instance["cmd_full"]
                 times = []
                 for trial in range(trials):
-                    output = _exec_command(full_command, environment, instance["env_directory"])
+                    output = _exec_command(full_command, environment, instance["env_directory"], instance["cmd_shell"])
                     search = re.search(pattern, output)
                     if not search:
                         raise RuntimeError("Unable to parse output: " + output)
@@ -66,8 +68,8 @@ def _mean(numbers: List[float]) -> float:
     return float(sum(numbers)) / max(len(numbers), 1)
 
 
-def _exec_command(command: List[str], env: Dict[str, str], working_dir: str) -> str:
-    sub = subprocess.run(args=command, env=env, stdout=subprocess.PIPE, cwd=working_dir)
+def _exec_command(command: List[str], env: Dict[str, str], working_dir: str, shell: bool) -> str:
+    sub = subprocess.run(args=command, env=env, stdout=subprocess.PIPE, cwd=working_dir, shell=shell)
     return sub.stdout.decode("utf-8")
 
 
